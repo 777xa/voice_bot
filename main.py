@@ -90,6 +90,60 @@ async def voice_handler(update, context):
             os.remove(temp_file)
 
 
+async def video_note_handler(update, context):
+    temp_file = f'video_note_{uuid.uuid4().hex}.mp4'
+
+    try:
+        # Скачиваем кружок (video_note)
+        video_note_file = await update.message.video_note.get_file()
+        await video_note_file.download_to_drive(temp_file)
+
+        await update.message.reply_text("Кружок получен. Начинается расшифровка...")
+
+        # Получаем текст с помощью Vosk и пунктации
+        raw_text = await transcribe_audio(temp_file)
+        punctuated_result = punctuator.infer([raw_text], apply_sbd=True)
+        enhanced_text = " ".join(punctuated_result[0])
+
+        print(f"Исходный текст кружка: {raw_text}")
+        print(f"Текст кружка после пунктуации: {enhanced_text}")
+        await update.message.reply_text(enhanced_text)
+
+    except Exception as e:
+        print(f"Исключение в video_note_handler: {e}")
+        await update.message.reply_text("Произошла ошибка при обработке кружка.")
+    finally:
+        if os.path.exists(temp_file):
+            os.remove(temp_file)
+
+
+async def video_handler(update, context):
+    temp_file = f'video_{uuid.uuid4().hex}.mp4'
+
+    try:
+        # Скачиваем видео
+        video_file = await update.message.video.get_file()
+        await video_file.download_to_drive(temp_file)
+
+        await update.message.reply_text("Видео получено. Начинается расшифровка...")
+
+        # Получаем текст с помощью Vosk и пунктации
+        raw_text = await transcribe_audio(temp_file)
+        punctuated_result = punctuator.infer([raw_text], apply_sbd=True)
+        enhanced_text = " ".join(punctuated_result[0])
+
+        print(f"Исходный текст видео: {raw_text}")
+        print(f"Текст видео после пунктуации: {enhanced_text}")
+        await update.message.reply_text(enhanced_text)
+
+    except Exception as e:
+        print(f"Исключение в video_handler: {e}")
+        await update.message.reply_text("Произошла ошибка при обработке видео.")
+    finally:
+        if os.path.exists(temp_file):
+            os.remove(temp_file)
+
+
 def main():
     token = os.getenv("TELEGRAM_BOT_TOKEN")
     if not token:
@@ -97,6 +151,8 @@ def main():
 
     app = Application.builder().token(token).build()
     app.add_handler(MessageHandler(filters.VOICE, voice_handler))
+    app.add_handler(MessageHandler(filters.VIDEO_NOTE, video_note_handler))
+    app.add_handler(MessageHandler(filters.VIDEO, video_handler))
     app.run_polling()
 
 
